@@ -9,6 +9,7 @@ import {
   User,
   Menu,
   ReceiptText,
+  PillBottle,
 } from "lucide-react"; // Icons
 
 export function SidebarLayout() {
@@ -72,13 +73,19 @@ export function SidebarLayout() {
             {isSidebarOpen && <span>Commandes</span>}
           </Link>
           <Link
+            href="/admin/laboratory/managing-stock-products"
+            className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
+          >
+            <PillBottle />
+            {isSidebarOpen && <span>Produits</span>}
+          </Link>
+          <Link
             href="/settings"
             className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
           >
             <Settings />
             {isSidebarOpen && <span>Paramètres</span>}
           </Link>
-
           <Link
             href="/profile"
             className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"

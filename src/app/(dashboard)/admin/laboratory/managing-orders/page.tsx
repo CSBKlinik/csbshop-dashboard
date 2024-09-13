@@ -12,6 +12,7 @@ async function ManagingOrders() {
   const labOrders = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/orders/laboratory`,
     {
+      next: { tags: ["orders"] },
       method: "GET",
       headers: {
         "Content-Type": "application/json",
