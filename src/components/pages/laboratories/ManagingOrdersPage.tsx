@@ -223,7 +223,7 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
         >
-          <option value="today">Aujourd'hui</option>
+          <option value="today">Aujourd&lsquo;hui</option>
           <option value="thisWeek">Cette semaine</option>
           <option value="pastTwoWeeks">Les deux dernières semaines</option>
           <option value="thisMonth">Ce mois-ci</option>
