@@ -11,9 +11,6 @@ const ManagingProductsPage = ({
   orders: any;
   promotion: any;
 }) => {
-  console.log("products:", products);
-  console.log("orders:", orders);
-  console.log("promotions:", promotion);
   return (
     <main className="font-outfit p-6 space-y-6 w-full max-w-[1000px] mx-auto">
       <div className="flex items-center justify-between">

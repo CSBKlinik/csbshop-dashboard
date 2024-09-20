@@ -180,7 +180,6 @@ export default function EnhancedOrdersTable({
       }
     },
   });
-  console.log("selectedOrder:", selectedOrder);
 
   return (
     <div>
