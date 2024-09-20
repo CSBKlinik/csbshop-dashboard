@@ -15,8 +15,6 @@ export async function loginLib(params: LoginParams) {
       }
     );
     const data = await user.json();
-    console.log("data:", data);
-    // @ts-ignore
     return data;
   } catch (error) {
     return error;

@@ -12,7 +12,11 @@ import {
   ShoppingCartIcon,
   TicketCheck,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 type Order = {
   id: number;
   date: string;
@@ -48,6 +52,8 @@ type SalesMetrics = {
   averagePurchasesPerCustomer: number;
   bestCustomer: { username: string; totalPurchases: number };
 };
+
+// Function to filter orders by date range
 const filterOrdersByDateRange = (orders: any, dateRange: string) => {
   const now = new Date();
   return orders.filter((order: any) => {
@@ -70,13 +76,21 @@ const filterOrdersByDateRange = (orders: any, dateRange: string) => {
     }
   });
 };
+
 const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
-  const [dateRange, setDateRange] = useState("fromBeginning"); // Default to "From the Beginning"
+  const [dateRange, setDateRange] = useState("fromBeginning");
+  const { data: session } = useSession();
+  const [ordersState, setOrdersState] = useState<Order[]>(orders); // Maintain a local state for orders
+
+  useEffect(() => {
+    // Update local state when orders change
+    setOrdersState(orders);
+  }, [orders]);
 
   // Filter orders based on the selected date range
   const filteredOrders = useMemo(
-    () => filterOrdersByDateRange(orders, dateRange),
-    [orders, dateRange]
+    () => filterOrdersByDateRange(ordersState, dateRange),
+    [ordersState, dateRange]
   );
 
   const salesMetrics: SalesMetrics = useMemo(() => {
@@ -198,6 +212,7 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
       bestCustomer,
     };
   }, [filteredOrders]);
+
   return (
     <main className="font-outfit p-6 space-y-6 w-full max-w-[1000px] mx-auto">
       <div className="flex items-center justify-between">
@@ -281,10 +296,15 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EnhancedOrdersTable orders={filteredOrders} />
+            <EnhancedOrdersTable
+              orders={filteredOrders}
+              // @ts-ignore
+              jwt={session?.user?.jwt}
+            />
           </CardContent>
         </Card>
       </div>
+      <ToastContainer />
     </main>
   );
 };

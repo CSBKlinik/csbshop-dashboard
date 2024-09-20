@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ScanSearch,
   SquareChevronLeft,
   SquareChevronRight,
   Settings,
-  X,
   ArrowUpDown,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/components/ui/button";
 import { Input } from "@/components/components/ui/input";
@@ -28,6 +28,8 @@ import {
 } from "@/components/components/ui/select";
 import * as Yup from "yup";
 import { useFormik } from "formik";
+import { toast } from "react-toastify";
+import updateOrder from "@/app/(dashboard)/admin/laboratory/managing-orders/actions";
 
 type Order = {
   id: number;
@@ -36,6 +38,7 @@ type Order = {
   total_amount: string;
   tracking_number?: string;
   carrier?: string;
+  shipping_adress: any;
   users_permissions_user: {
     id: number;
     username: string;
@@ -57,10 +60,13 @@ const OrderSchema = Yup.object().shape({
   carrier: Yup.string().required("Le transporteur est requis"),
   status: Yup.string().required("Le statut est requis"),
 });
+
 export default function EnhancedOrdersTable({
   orders: initialOrders,
+  jwt,
 }: {
   orders: Order[];
+  jwt: string;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [sortBy, setSortBy] = useState<"total_amount" | "date">("total_amount");
@@ -72,27 +78,6 @@ export default function EnhancedOrdersTable({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const ordersPerPage = 6;
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "in progress":
-        return { label: "En cours", color: "bg-yellow-200 text-black" };
-      case "on hold":
-        return { label: "En attente", color: "bg-gray-200 text-gray-800" };
-      case "shipped":
-        return { label: "Expédiée", color: "bg-blue-500 text-white" };
-      case "completed":
-        return { label: "Complétée", color: "bg-green-500 text-white" };
-      case "canceled":
-        return { label: "Annulée", color: "bg-red-500 text-white" };
-      case "beached":
-        return { label: "Échouée", color: "bg-red-800 text-white" };
-      case "refunded":
-        return { label: "Remboursée", color: "bg-purple-500 text-white" };
-      default:
-        return { label: "Inconnu", color: "bg-gray-300 text-black" };
-    }
-  };
 
   const sortedOrders = orders
     .filter((order: Order) =>
@@ -143,15 +128,6 @@ export default function EnhancedOrdersTable({
     setIsDialogOpen(true);
   };
 
-  const handleUpdateOrder = (updatedOrder: Order) => {
-    setOrders(
-      orders.map((order) =>
-        order.id === updatedOrder.id ? updatedOrder : order
-      )
-    );
-    setIsDialogOpen(false);
-  };
-
   const formik = useFormik({
     initialValues: {
       tracking_number: selectedOrder?.tracking_number || "",
@@ -160,18 +136,54 @@ export default function EnhancedOrdersTable({
     },
     validationSchema: OrderSchema,
     enableReinitialize: true,
-    onSubmit: (values: any) => {
-      const updatedOrder = {
-        ...selectedOrder,
-        tracking_number: values.tracking_number,
-        carrier: values.carrier,
-        deliver_follow: values.status,
-      };
+    onSubmit: async (values, { resetForm }) => {
+      if (selectedOrder) {
+        const updatedOrder = {
+          data: {
+            tracking_number: values.tracking_number,
+            carrier: values.carrier,
+            deliver_follow: values.status,
+          },
+        };
+
+        const update = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${selectedOrder?.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwt}`,
+            },
+            body: JSON.stringify(updatedOrder),
+          }
+        );
+
+        if (update.ok) {
+          toast.success("Les informations ont été mises à jour avec succès !");
+          resetForm();
+
+          // Optimistically update the order list state
+          setOrders((prevOrders) =>
+            prevOrders.map((order) =>
+              order.id === selectedOrder.id
+                ? { ...order, ...updatedOrder.data }
+                : order
+            )
+          );
+
+          // Optionally trigger a re-fetch or revalidation of the orders
+          updateOrder(); // If this triggers revalidation on the server
+          setIsDialogOpen(false);
+        } else {
+          toast.error("Une erreur est survenue lors de la mise à jour.");
+        }
+      }
     },
   });
 
   return (
     <div>
+      {/* UI and Table */}
       <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center">
         <div className="relative flex-grow">
           <Input
@@ -231,7 +243,6 @@ export default function EnhancedOrdersTable({
           <tbody className="text-sm">
             {paginatedOrders.length > 0 ? (
               paginatedOrders.map((order: Order) => {
-                const { label, color } = getStatusLabel(order.deliver_follow);
                 return (
                   <tr key={order.id}>
                     <td className="px-4 py-2 border-b text-left">
@@ -239,9 +250,11 @@ export default function EnhancedOrdersTable({
                     </td>
                     <td className="px-4 py-2 border-b text-left">
                       <span
-                        className={`px-2 py-1 inline-block rounded-lg text-xs font-medium ${color}`}
+                        className={`px-2 py-1 inline-block rounded-lg text-xs font-medium ${
+                          getStatusLabel(order.deliver_follow).color
+                        }`}
                       >
-                        {label}
+                        {getStatusLabel(order.deliver_follow).label}
                       </span>
                     </td>
                     <td className="px-4 py-2 border-b text-left font-semibold">
@@ -303,12 +316,30 @@ export default function EnhancedOrdersTable({
           <DialogHeader>
             <DialogTitle>Gérer la commande</DialogTitle>
           </DialogHeader>
+          <div className="w-full p-2 flex gap-2">
+            <div className="bg-regularBlue bg-opacity-20 p-2 h-fit rounded-lg">
+              <Truck className="w-6 h-6 text-regularBlue" />
+            </div>
+            <div>
+              <p className="text-[14px] font-medium">Addresse de livraison:</p>
+              <div className="text-[13px] font-medium text-gray-600">
+                <p>{selectedOrder?.shipping_adress.adresse}</p>
+                <p className="uppercase">
+                  {selectedOrder?.shipping_adress.zip}{" "}
+                  {selectedOrder?.shipping_adress.city}
+                </p>
+                <p className="uppercase">
+                  {selectedOrder?.shipping_adress.country}
+                </p>
+              </div>
+            </div>
+          </div>
           {selectedOrder && (
             <form onSubmit={formik.handleSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="tracking_number" className="text-right">
-                    Numéro de suivi
+                    N° de suivi
                   </Label>
                   <Input
                     id="tracking_number"
@@ -320,8 +351,6 @@ export default function EnhancedOrdersTable({
                   {formik.errors.tracking_number &&
                   formik.touched.tracking_number ? (
                     <div className="text-red-500 text-sm">
-                      {/* @ts-ignore */}
-
                       {formik.errors.tracking_number}
                     </div>
                   ) : null}
@@ -339,7 +368,6 @@ export default function EnhancedOrdersTable({
                   />
                   {formik.errors.carrier && formik.touched.carrier ? (
                     <div className="text-red-500 text-sm">
-                      {/* @ts-ignore */}
                       {formik.errors.carrier}
                     </div>
                   ) : null}
@@ -358,7 +386,7 @@ export default function EnhancedOrdersTable({
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Sélectionner un statut" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white">
                       <SelectItem value="in progress">En cours</SelectItem>
                       <SelectItem value="on hold">En attente</SelectItem>
                       <SelectItem value="shipped">Expédiée</SelectItem>
@@ -370,7 +398,6 @@ export default function EnhancedOrdersTable({
                   </Select>
                   {formik.errors.status && formik.touched.status ? (
                     <div className="text-red-500 text-sm">
-                      {/* @ts-ignore */}
                       {formik.errors.status}
                     </div>
                   ) : null}
@@ -386,3 +413,24 @@ export default function EnhancedOrdersTable({
     </div>
   );
 }
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "in progress":
+      return { label: "En cours", color: "bg-yellow-200 text-black" };
+    case "on hold":
+      return { label: "En attente", color: "bg-gray-200 text-gray-800" };
+    case "shipped":
+      return { label: "Expédiée", color: "bg-blue-500 text-white" };
+    case "completed":
+      return { label: "Complétée", color: "bg-green-500 text-white" };
+    case "canceled":
+      return { label: "Annulée", color: "bg-red-500 text-white" };
+    case "beached":
+      return { label: "Échouée", color: "bg-red-800 text-white" };
+    case "refunded":
+      return { label: "Remboursée", color: "bg-purple-500 text-white" };
+    default:
+      return { label: "Inconnu", color: "bg-gray-300 text-black" };
+  }
+};
