@@ -1,6 +1,9 @@
+"use client";
 import React from "react";
 import Image from "next/image";
 import LoginForm from "../forms/users/LoginForm";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const LoginPage = () => {
   return (
@@ -8,6 +11,7 @@ const LoginPage = () => {
       <div className="w-full min-h-[200px]">
         <LoginForm />
       </div>
+      <ToastContainer />
     </div>
   );
 };

@@ -248,9 +248,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             <div className="text-2xl font-bold">
               €{salesMetrics.turnover.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
           </CardContent>
         </Card>
 
@@ -267,9 +264,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             <div className="text-2xl font-bold">
               {salesMetrics.numberOfSales}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +180.1% from last month
-            </p>
           </CardContent>
         </Card>
 
@@ -305,9 +299,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             <div className="text-2xl font-bold">
               {salesMetrics.numberOfCustomers}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +201 since last hour
-            </p>
           </CardContent>
         </Card>
         <Card className="bg-white">
@@ -323,9 +314,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             <div className="text-2xl font-bold">
               {salesMetrics.salesPerCustomer.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +10.1% from last week
-            </p>
           </CardContent>
         </Card>
         <Card className="bg-white">
@@ -341,8 +329,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
 
           <CardContent>
             <div className="text-2xl font-bold">{salesMetrics.packSales}</div>
-
-            <p className="text-xs text-muted-foreground">+7% from last month</p>
           </CardContent>
         </Card>
       </div>

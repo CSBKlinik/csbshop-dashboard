@@ -77,11 +77,16 @@ const filterOrdersByDateRange = (orders: any, dateRange: string) => {
   });
 };
 
-const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
+const ManagingOrdersPage = ({
+  orders,
+  transporters,
+}: {
+  orders: Order[];
+  transporters: any;
+}) => {
   const [dateRange, setDateRange] = useState("fromBeginning");
   const { data: session } = useSession();
   const [ordersState, setOrdersState] = useState<Order[]>(orders); // Maintain a local state for orders
-
   useEffect(() => {
     // Update local state when orders change
     setOrdersState(orders);
@@ -242,9 +247,6 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
             <div className="text-2xl font-bold">
               €{salesMetrics.turnover.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
           </CardContent>
         </Card>
 
@@ -261,9 +263,6 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
             <div className="text-2xl font-bold">
               {salesMetrics.numberOfSales}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +180.1% from last month
-            </p>
           </CardContent>
         </Card>
         <Card className="bg-white">
@@ -279,9 +278,6 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
             <div className="text-2xl font-bold">
               €{salesMetrics.averageBasket.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +19% from last month
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -300,6 +296,7 @@ const ManagingOrdersPage = ({ orders }: { orders: Order[] }) => {
               orders={filteredOrders}
               // @ts-ignore
               jwt={session?.user?.jwt}
+              transporters={transporters}
             />
           </CardContent>
         </Card>

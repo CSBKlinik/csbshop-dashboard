@@ -64,9 +64,11 @@ const OrderSchema = Yup.object().shape({
 export default function EnhancedOrdersTable({
   orders: initialOrders,
   jwt,
+  transporters,
 }: {
   orders: Order[];
   jwt: string;
+  transporters: any;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [sortBy, setSortBy] = useState<"total_amount" | "date">("total_amount");
@@ -133,6 +135,10 @@ export default function EnhancedOrdersTable({
       tracking_number: selectedOrder?.tracking_number || "",
       carrier: selectedOrder?.carrier || "",
       status: selectedOrder?.deliver_follow || "in progress",
+      transporter: {
+        name: "",
+        tracking_link: "",
+      },
     },
     validationSchema: OrderSchema,
     enableReinitialize: true,
@@ -143,9 +149,12 @@ export default function EnhancedOrdersTable({
             tracking_number: values.tracking_number,
             carrier: values.carrier,
             deliver_follow: values.status,
+            transporter: {
+              name: values.transporter.name,
+              tracking_link: values.transporter.tracking_link,
+            },
           },
         };
-
         const update = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${selectedOrder?.id}`,
           {
@@ -356,22 +365,43 @@ export default function EnhancedOrdersTable({
                   ) : null}
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="carrier" className="text-right">
-                    Transporteur
+                  <Label htmlFor="transporter" className="text-right">
+                    Transporteurs
                   </Label>
-                  <Input
-                    id="carrier"
-                    name="carrier"
-                    value={formik.values.carrier}
-                    onChange={formik.handleChange}
-                    className="col-span-3"
-                  />
-                  {formik.errors.carrier && formik.touched.carrier ? (
-                    <div className="text-red-500 text-sm">
-                      {formik.errors.carrier}
-                    </div>
-                  ) : null}
+                  <Select
+                    name="transporter"
+                    value={formik.values.transporter.name}
+                    onValueChange={(value: string) => {
+                      const selectedTransporter = transporters.data.find(
+                        (transporter: any) =>
+                          transporter.attributes.name === value
+                      );
+                      if (selectedTransporter) {
+                        formik.setFieldValue("transporter", {
+                          name: selectedTransporter.attributes.name,
+                          tracking_link:
+                            selectedTransporter.attributes.base_link +
+                            formik.values.tracking_number,
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Sélectionner un transporteur" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {transporters.data.map((transporter: any) => (
+                        <SelectItem
+                          key={transporter.id}
+                          value={transporter.attributes.name}
+                        >
+                          {transporter.attributes.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="status" className="text-right">
                     Statut

@@ -42,12 +42,19 @@ const LoginForm = () => {
         password: values.password,
         redirect: false,
       });
-      console.log("authentification", authentification);
       if (authentification?.error) {
-        setError(authentification?.error);
+        const errorMessage =
+          authentification?.error === "CredentialsSigin"
+            ? "Identifiants incorrects"
+            : authentification?.error;
+        toast.error(errorMessage, {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        setError(errorMessage);
         setIsLoading(false); // Termine le chargement
       } else {
-        toast.success("Login successful!", {
+        toast.success("Connexion réussie", {
           position: "top-right",
           autoClose: 3000,
         });

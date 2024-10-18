@@ -22,7 +22,22 @@ async function ManagingOrders() {
     }
   );
   labOrdersApi = await labOrders.json();
-  return <ManagingOrdersPage orders={labOrdersApi} />;
+  let transporterApi;
+  const transporter = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/transporters?populate=*`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        //   @ts-ignore
+        Authorization: `Bearer ${jwt}`,
+      },
+    }
+  );
+  transporterApi = await transporter.json();
+  return (
+    <ManagingOrdersPage orders={labOrdersApi} transporters={transporterApi} />
+  );
 }
 
 export default ManagingOrders;
