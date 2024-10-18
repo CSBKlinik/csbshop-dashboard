@@ -14,9 +14,11 @@ export async function loginLib(params: LoginParams) {
         body: JSON.stringify(params),
       }
     );
+
     const data = await user.json();
     return data;
   } catch (error) {
+    console.log("error:", error);
     return error;
   }
 }

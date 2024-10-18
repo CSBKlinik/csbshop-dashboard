@@ -222,7 +222,7 @@ export default function ProductManagement({
         <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Chiffre d'Affaires Total
+              Chiffre d&lsquo;Affaires Total
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -267,7 +267,7 @@ export default function ProductManagement({
               className="cursor-pointer"
               onClick={() => handleSort("revenue")}
             >
-              Chiffre d'Affaires{" "}
+              Chiffre d&lsquo;Affaires{" "}
               {sortColumn === "revenue" && (
                 <ArrowUpDown className="ml-2 h-4 w-4 inline" />
               )}

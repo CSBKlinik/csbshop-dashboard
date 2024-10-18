@@ -18,10 +18,10 @@ export const authOptions: AuthOptions = {
         };
         const authentification = await loginLib(params);
         if (authentification.error) {
-          // console.log("Auth error ...", authentification.error);
+          console.log("Auth error ...", authentification.error);
           return null;
         } else {
-          // console.log("Auth success !", authentification);
+          console.log("Auth success !");
           const jwt = authentification.jwt;
           const user = authentification.user;
           return {
