@@ -280,9 +280,6 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             <div className="text-2xl font-bold">
               €{salesMetrics.averageBasket.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              +19% from last month
-            </p>
           </CardContent>
         </Card>
         {/* Continue the rest of your metrics cards... */}

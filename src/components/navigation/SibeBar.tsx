@@ -10,7 +10,9 @@ import {
   Menu,
   ReceiptText,
   PillBottle,
+  LogOut,
 } from "lucide-react"; // Icons
+import { signOut } from "next-auth/react";
 
 export function SidebarLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -80,19 +82,26 @@ export function SidebarLayout() {
             {isSidebarOpen && <span>Produits</span>}
           </Link>
           <Link
-            href="/settings"
+            href="/admin/laboratory/settings"
             className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
           >
             <Settings />
             {isSidebarOpen && <span>Paramètres</span>}
           </Link>
-          <Link
+          <button
+            className="flex text-red-500 items-center gap-3 p-2"
+            onClick={() => signOut()}
+          >
+            <LogOut />
+            {isSidebarOpen && <span>Déconnexion</span>}
+          </button>
+          {/* <Link
             href="/profile"
             className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
           >
             <User />
             {isSidebarOpen && <span>Profil</span>}
-          </Link>
+          </Link> */}
         </nav>
       </div>
 

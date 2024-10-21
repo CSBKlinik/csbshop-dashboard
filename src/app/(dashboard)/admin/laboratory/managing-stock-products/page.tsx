@@ -47,6 +47,7 @@ async function ManageProducts() {
   promotionApi = await promotions.json();
   return (
     <ManagingProductsPage
+      session={session}
       products={labProductsApi}
       orders={labOrdersApi}
       promotion={promotionApi?.data}

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { FaLock, FaUser } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaLock, FaUser } from "react-icons/fa";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ToastContainer, toast } from "react-toastify";
@@ -8,9 +8,11 @@ import "react-toastify/dist/ReactToastify.css";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
+import Image from "next/image";
+import logo from "../../../../public/logo.png";
 const LoginForm = () => {
   const [error, setError] = useState<any>(null);
+  const [show, setShow] = useState(false);
   const [isLoading, setIsLoading] = useState(false); // État pour gérer le chargement
   const { data: session } = useSession();
   const router = useRouter();
@@ -24,11 +26,11 @@ const LoginForm = () => {
   // Validation schema using Yup
   const validationSchema = Yup.object({
     email: Yup.string()
-      .email("Invalid email address")
-      .required("Email is required"),
+      .email("Adresse email invalide")
+      .required("Email obligatoire"),
     password: Yup.string()
-      .min(6, "Password must be at least 6 characters")
-      .required("Password is required"),
+      .min(6, "Le mot de passe doit contenir au moins 6 caractères")
+      .required("Mot de passe obligatoire"),
   });
 
   // Formik hook to manage form state
@@ -44,7 +46,7 @@ const LoginForm = () => {
       });
       if (authentification?.error) {
         const errorMessage =
-          authentification?.error === "CredentialsSigin"
+          authentification?.error === "CredentialsSignin"
             ? "Identifiants incorrects"
             : authentification?.error;
         toast.error(errorMessage, {
@@ -54,16 +56,28 @@ const LoginForm = () => {
         setError(errorMessage);
         setIsLoading(false); // Termine le chargement
       } else {
+        console.log("authentification:", authentification);
         toast.success("Connexion réussie", {
           position: "top-right",
           autoClose: 3000,
         });
+        setTimeout(() => {
+          router.push("/");
+        }, 3000);
       }
     },
   });
 
   return (
-    <div className="mx-auto max-w-screen-xl py-16 sm:px-6 lg:px-0 mt-14 lg:max-w-[400px] lg:mt-20">
+    <div className="mx-auto max-w-screen-xl py-16 sm:px-6 lg:px-0  lg:max-w-[400px] ">
+      <div className="relative w-[200px] h-[200px] mx-auto">
+        <Image
+          src={logo}
+          className="w-full h-full object-contain"
+          fill
+          alt="Logo CSB Klinik"
+        />
+      </div>
       <form
         onSubmit={formik.handleSubmit}
         className="mx-auto mb-0 mt-8 max-w-md space-y-4"
@@ -78,7 +92,7 @@ const LoginForm = () => {
               id="email"
               name="email"
               type="email"
-              className={`w-full -gray-200 p-4 pl-10 pe-12 text-sm shadow-sm ${
+              className={`w-full -gray-200 p-4 pl-10 pe-12 text-sm shadow-sm rounded-full border border-regularBlue ${
                 formik.errors.email && formik.touched.email
                   ? "border-red-500"
                   : ""
@@ -108,8 +122,8 @@ const LoginForm = () => {
             <input
               id="password"
               name="password"
-              type="password"
-              className={`w-full -gray-200 p-4 pl-10 pe-12 text-sm shadow-sm ${
+              type={!show ? "password" : "text"}
+              className={`w-full -gray-200 p-4 pl-10 pe-12 text-sm shadow-sm rounded-full border border-regularBlue ${
                 formik.errors.password && formik.touched.password
                   ? "border-red-500"
                   : ""
@@ -122,12 +136,16 @@ const LoginForm = () => {
             <span className="absolute inset-y-0 start-0 grid place-content-center px-4">
               <FaLock className="size-5 text-regularBlue" />
             </span>
-            <Link
-              href="/forgot-password"
+            <div
               className="absolute inset-y-0 end-0 grid place-content-center px-4 underline text-regularBlue text-[12px] cursor-pointer"
+              onClick={() => setShow(!show)}
             >
-              Forgot password ?
-            </Link>
+              {!show ? (
+                <FaEye className="w-4 h-4" />
+              ) : (
+                <FaEyeSlash className="w-4 h-4" />
+              )}
+            </div>
           </div>
           {formik.errors.password && formik.touched.password && (
             <div className="text-red-500 text-sm mt-1">
@@ -140,8 +158,8 @@ const LoginForm = () => {
           {!isLoading && (
             <button
               type="submit"
-              className="inline-block w-full bg-coral px-5 py-3 text-sm font-medium text-white border 
-            border-coral hover:bg-transparent hover:text-coral uppercase font-semibold"
+              className="inline-block bg-regularBlue w-full rounded-full border border-regularBlue px-5 py-3 text-sm  text-white  
+             hover:bg-transparent hover:text-regularBlue uppercase font-semibold"
               disabled={isLoading}
             >
               Connexion
