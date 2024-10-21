@@ -38,7 +38,7 @@ export const authOptions: AuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/admin",
+    signIn: "/",
   },
   callbacks: {
     async jwt({ token, user }) {

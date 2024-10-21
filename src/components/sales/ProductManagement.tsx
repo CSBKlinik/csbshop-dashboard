@@ -19,12 +19,15 @@ import {
 } from "@/components/components/ui/cards/card";
 import { ArrowUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Switch } from "@headlessui/react"; // Utilisation du switch pour le toggle
+
 type Product = {
   id: number;
   title: string;
   stock: string;
   pricing: number;
-  original_price?: number; // Add original price if it's available
+  original_price?: number;
+  active: boolean; // Ajout de la disponibilité
 };
 
 type Order = {
@@ -60,18 +63,27 @@ type ProductManagementProps = {
   products: Product[];
   orders: Order[];
   promotions: Promotion[];
+  credentials: any;
 };
 
 export default function ProductManagement({
   products,
   orders,
   promotions,
+  credentials,
 }: ProductManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<
     "title" | "stock" | "sales" | "revenue"
   >("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [availability, setAvailability] = useState<{ [key: number]: boolean }>(
+    () =>
+      products.reduce(
+        (acc, product) => ({ ...acc, [product.id]: product.active }),
+        {}
+      )
+  );
 
   const getPromotionPrice = (
     date: string,
@@ -122,7 +134,7 @@ export default function ProductManagement({
             order.date,
             item.product.id,
             product.pricing,
-            product.original_price! // Add this if it's available in the product data
+            product.original_price! // Add this if it's active in the product data
           );
           data[item.product.id].quantity += item.quantity;
           data[item.product.id].revenue += item.quantity * promotionalPrice!;
@@ -172,6 +184,39 @@ export default function ProductManagement({
 
   const updateStock = (productId: number, newStock: string) => {
     console.log(`Updating stock for product ${productId} to ${newStock}`);
+  };
+
+  const toggleAvailability = async (productId: number) => {
+    const newAvailability = !availability[productId];
+    setAvailability({ ...availability, [productId]: newAvailability });
+    let datas = {
+      data: {
+        active: newAvailability,
+      },
+    };
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/products/${productId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${credentials?.user?.jwt}`,
+          },
+          body: JSON.stringify(datas),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise à jour de la disponibilité");
+      }
+
+      console.log(
+        `Product ${productId} availability updated to ${newAvailability}`
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const totalSales = useMemo(() => {
@@ -302,6 +347,30 @@ export default function ProductManagement({
                     }
                   />
                   <Button size="sm">Mettre à jour</Button>
+                  <Switch
+                    checked={availability[product.id]}
+                    onChange={() => toggleAvailability(product.id)}
+                    className={`${
+                      availability[product.id] ? "bg-green-600" : "bg-gray-200"
+                    } relative inline-flex h-6 w-11 items-center rounded-full`}
+                  >
+                    <span
+                      className={`${
+                        availability[product.id]
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                      } inline-block h-4 w-4 transform rounded-full bg-white transition`}
+                    />
+                  </Switch>
+                  <p
+                    className={`capitalize font-semibold text-[12px] italic ${
+                      availability[product.id]
+                        ? "text-green-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {availability[product.id] ? "disponible" : "indisponible"}
+                  </p>
                 </div>
               </TableCell>
             </TableRow>
