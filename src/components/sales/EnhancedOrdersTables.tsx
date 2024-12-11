@@ -130,6 +130,7 @@ export default function EnhancedOrdersTable({
     setIsDialogOpen(true);
   };
 
+  console.log("selectedOrder:", selectedOrder);
   const formik = useFormik({
     initialValues: {
       tracking_number: selectedOrder?.tracking_number || "",
@@ -255,7 +256,10 @@ export default function EnhancedOrdersTable({
                 return (
                   <tr key={order.id}>
                     <td className="px-4 py-2 border-b text-left">
-                      {order.users_permissions_user.username}
+                      {/* @ts-ignore */}
+                      {order.users_permissions_user.firstName}{" "}
+                      {/* @ts-ignore */}
+                      {order.users_permissions_user.lastName}
                     </td>
                     <td className="px-4 py-2 border-b text-left">
                       <span
@@ -332,6 +336,13 @@ export default function EnhancedOrdersTable({
             <div>
               <p className="text-[14px] font-medium">Addresse de livraison:</p>
               <div className="text-[13px] font-medium text-gray-600">
+                {/* @ts-ignore */}
+                <p>
+                  {/* @ts-ignore */}
+                  {selectedOrder?.users_permissions_user?.firstName}{" "}
+                  {/* @ts-ignore */}
+                  {selectedOrder?.users_permissions_user?.lastName}
+                </p>
                 <p>{selectedOrder?.shipping_adress.adresse}</p>
                 <p className="uppercase">
                   {selectedOrder?.shipping_adress.zip}{" "}

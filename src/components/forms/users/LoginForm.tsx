@@ -56,7 +56,6 @@ const LoginForm = () => {
         setError(errorMessage);
         setIsLoading(false); // Termine le chargement
       } else {
-        console.log("authentification:", authentification);
         toast.success("Connexion réussie", {
           position: "top-right",
           autoClose: 3000,
@@ -152,6 +151,11 @@ const LoginForm = () => {
               {formik.errors.password}
             </div>
           )}
+        </div>
+        <div className="w-full p-3 text-blue-500">
+          <Link href="/mot-de-pass-oublie" className="hover:underline">
+            Mot de passe oublié ?
+          </Link>
         </div>
 
         <div className="flex items-center justify-between">
