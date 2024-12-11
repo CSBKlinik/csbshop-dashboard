@@ -128,7 +128,10 @@ export default function OrdersTable({ orders }: { orders: any }) {
                 return (
                   <tr key={order.id}>
                     <td className="px-4 py-2 border-b text-left">
-                      {order.users_permissions_user.username}
+                      {/* @ts-ignore */}
+                      {order.users_permissions_user.firstName}{" "}
+                      {/* @ts-ignore */}
+                      {order.users_permissions_user.lastName}
                     </td>
 
                     <td className="px-4 py-2 border-b text-left">
