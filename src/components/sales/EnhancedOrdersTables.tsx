@@ -338,7 +338,9 @@ export default function EnhancedOrdersTable({
               <div className="text-[13px] font-medium text-gray-600">
                 {/* @ts-ignore */}
                 <p>
+                  {/* @ts-ignore */}
                   {selectedOrder?.users_permissions_user?.firstName}{" "}
+                  {/* @ts-ignore */}
                   {selectedOrder?.users_permissions_user?.lastName}
                 </p>
                 <p>{selectedOrder?.shipping_adress.adresse}</p>
