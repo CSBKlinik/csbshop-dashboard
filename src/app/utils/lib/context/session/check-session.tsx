@@ -23,7 +23,7 @@ export const SessionUserProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     // Utilisez signOut pour déconnecter l'utilisateur
-    signOut({ callbackUrl: "/login" }); // Redirige vers /login après déconnexion
+    signOut({ callbackUrl: "/" }); // Redirige vers /login après déconnexion
   };
 
   async function fetchMe(session: any) {
