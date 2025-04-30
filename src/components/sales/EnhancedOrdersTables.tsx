@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   ScanSearch,
   SquareChevronLeft,
@@ -31,6 +31,8 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import updateOrder from "@/app/(dashboard)/admin/laboratory/managing-orders/actions";
 
+// Types
+
 type Order = {
   id: number;
   date: string;
@@ -38,12 +40,20 @@ type Order = {
   total_amount: string;
   tracking_number?: string;
   carrier?: string;
-  shipping_adress: any;
+  shipping_adress: {
+    adresse: string;
+    zip: string;
+    city: string;
+    country: string;
+  };
   users_permissions_user: {
     id: number;
     username: string;
     email: string;
+    firstName?: string;
+    lastName?: string;
   };
+  transporter?: { name: string; tracking_link: string };
 };
 
 type OrderStatus =
@@ -55,11 +65,15 @@ type OrderStatus =
   | "beached"
   | "refunded";
 
+// Validation schema
+
 const OrderSchema = Yup.object().shape({
   tracking_number: Yup.string().required("Le numéro de suivi est requis"),
   carrier: Yup.string().required("Le transporteur est requis"),
   status: Yup.string().required("Le statut est requis"),
 });
+
+// Component
 
 export default function EnhancedOrdersTable({
   orders: initialOrders,
@@ -70,6 +84,7 @@ export default function EnhancedOrdersTable({
   jwt: string;
   transporters: any;
 }) {
+  // Table state
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [sortBy, setSortBy] = useState<"total_amount" | "date">("total_amount");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -78,38 +93,36 @@ export default function EnhancedOrdersTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
   const ordersPerPage = 6;
 
+  // Sorting & filtering
   const sortedOrders = orders
-    .filter((order: Order) =>
+    .filter((order) =>
       order.users_permissions_user.email
         .toLowerCase()
         .includes(searchQuery.toLowerCase())
     )
-    .filter((order: Order) =>
+    .filter((order) =>
       statusFilter === "all" ? true : order.deliver_follow === statusFilter
     )
-    .sort((a: Order, b: Order) => {
+    .sort((a, b) => {
       if (sortBy === "total_amount") {
-        const amountA = parseFloat(a.total_amount);
-        const amountB = parseFloat(b.total_amount);
-        return sortOrder === "asc" ? amountA - amountB : amountB - amountA;
-      } else if (sortBy === "date") {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+        const aAmt = parseFloat(a.total_amount);
+        const bAmt = parseFloat(b.total_amount);
+        return sortOrder === "asc" ? aAmt - bAmt : bAmt - aAmt;
       }
-      return 0;
+      const aTime = new Date(a.date).getTime();
+      const bTime = new Date(b.date).getTime();
+      return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
     });
 
   const paginatedOrders = sortedOrders.slice(
     (currentPage - 1) * ordersPerPage,
     currentPage * ordersPerPage
   );
-
   const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
 
+  // Handlers
   const handleSort = (criteria: "total_amount" | "date") => {
     if (sortBy === criteria) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -130,13 +143,13 @@ export default function EnhancedOrdersTable({
     setIsDialogOpen(true);
   };
 
-  console.log("selectedOrder:", selectedOrder);
+  // Formik
   const formik = useFormik({
     initialValues: {
       tracking_number: selectedOrder?.tracking_number || "",
       carrier: selectedOrder?.carrier || "",
       status: selectedOrder?.deliver_follow || "in progress",
-      transporter: {
+      transporter: selectedOrder?.transporter || {
         name: "",
         tracking_link: "",
       },
@@ -144,56 +157,48 @@ export default function EnhancedOrdersTable({
     validationSchema: OrderSchema,
     enableReinitialize: true,
     onSubmit: async (values, { resetForm }) => {
-      if (selectedOrder) {
-        const updatedOrder = {
-          data: {
-            tracking_number: values.tracking_number,
-            carrier: values.carrier,
-            deliver_follow: values.status,
-            transporter: {
-              name: values.transporter.name,
-              tracking_link: values.transporter.tracking_link,
-            },
+      if (!selectedOrder) return;
+      const payload = {
+        data: {
+          tracking_number: values.tracking_number,
+          carrier: values.carrier,
+          deliver_follow: values.status,
+          transporter: {
+            name: values.transporter.name,
+            tracking_link: values.transporter.tracking_link,
           },
-        };
-        const update = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${selectedOrder?.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${jwt}`,
-            },
-            body: JSON.stringify(updatedOrder),
-          }
-        );
-
-        if (update.ok) {
-          toast.success("Les informations ont été mises à jour avec succès !");
-          resetForm();
-
-          // Optimistically update the order list state
-          setOrders((prevOrders) =>
-            prevOrders.map((order) =>
-              order.id === selectedOrder.id
-                ? { ...order, ...updatedOrder.data }
-                : order
-            )
-          );
-
-          // Optionally trigger a re-fetch or revalidation of the orders
-          updateOrder(); // If this triggers revalidation on the server
-          setIsDialogOpen(false);
-        } else {
-          toast.error("Une erreur est survenue lors de la mise à jour.");
+        },
+      };
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${selectedOrder.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify(payload),
         }
+      );
+      if (res.ok) {
+        toast.success("Les informations ont été mises à jour !");
+        resetForm();
+        setIsDialogOpen(false);
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === selectedOrder.id ? { ...o, ...payload.data } : o
+          )
+        );
+        updateOrder();
+      } else {
+        toast.error("Erreur lors de la mise à jour.");
       }
     },
   });
 
   return (
     <div>
-      {/* UI and Table */}
+      {/* Recherche & filtre */}
       <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center">
         <div className="relative flex-grow">
           <Input
@@ -203,18 +208,16 @@ export default function EnhancedOrdersTable({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
-          <ScanSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <ScanSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         </div>
         <Select
           value={statusFilter}
-          onValueChange={(value) =>
-            setStatusFilter(value as OrderStatus | "all")
-          }
+          onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filtrer par statut" />
           </SelectTrigger>
-          <SelectContent className="bg-white">
+          <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
             <SelectItem value="in progress">En cours</SelectItem>
             <SelectItem value="on hold">En attente</SelectItem>
@@ -227,72 +230,66 @@ export default function EnhancedOrdersTable({
         </Select>
       </div>
 
+      {/* Tableau */}
       <div className="overflow-hidden rounded-lg border border-gray-300">
         <table className="min-w-full bg-white text-sm">
           <thead>
             <tr className="text-gray-500">
               <th className="px-4 py-2 border-b text-left">Client</th>
-              <th className="px-4 py-2 border-b text-left">Status</th>
+              <th className="px-4 py-2 border-b text-left">Statut</th>
               <th
                 className="px-4 py-2 border-b cursor-pointer text-left"
                 onClick={() => handleSort("total_amount")}
               >
-                Montant
-                <ArrowUpDown className="inline ml-1 h-4 w-4" />
+                Montant <ArrowUpDown className="inline ml-1 h-4 w-4" />
               </th>
               <th
                 className="px-4 py-2 border-b cursor-pointer text-left"
                 onClick={() => handleSort("date")}
               >
-                Date
-                <ArrowUpDown className="inline ml-1 h-4 w-4" />
+                Date <ArrowUpDown className="inline ml-1 h-4 w-4" />
               </th>
               <th className="px-4 py-2 border-b text-left">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-sm">
+          <tbody>
             {paginatedOrders.length > 0 ? (
-              paginatedOrders.map((order: Order) => {
-                return (
-                  <tr key={order.id}>
-                    <td className="px-4 py-2 border-b text-left">
-                      {/* @ts-ignore */}
-                      {order.users_permissions_user.firstName}{" "}
-                      {/* @ts-ignore */}
-                      {order.users_permissions_user.lastName}
-                    </td>
-                    <td className="px-4 py-2 border-b text-left">
-                      <span
-                        className={`px-2 py-1 inline-block rounded-lg text-xs font-medium ${
-                          getStatusLabel(order.deliver_follow).color
-                        }`}
-                      >
-                        {getStatusLabel(order.deliver_follow).label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 border-b text-left font-semibold">
-                      €{(parseFloat(order.total_amount) / 100).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2 border-b text-left">
-                      {new Date(order.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-2 border-b text-left">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleManageOrder(order)}
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Gérer
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
+              paginatedOrders.map((order) => (
+                <tr key={order.id}>
+                  <td className="px-4 py-2 border-b">
+                    {order.users_permissions_user.firstName}{" "}
+                    {order.users_permissions_user.lastName}
+                  </td>
+                  <td className="px-4 py-2 border-b">
+                    <span
+                      className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                        getStatusLabel(order.deliver_follow).color
+                      }`}
+                    >
+                      {getStatusLabel(order.deliver_follow).label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 border-b font-semibold">
+                    €{(parseFloat(order.total_amount) / 100).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-2 border-b">
+                    {new Date(order.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-2 border-b">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleManageOrder(order)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" /> Gérer
+                    </Button>
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan={5} className="px-4 py-2 text-center">
-                  Aucune commande disponible.
+                  Aucune commande.
                 </td>
               </tr>
             )}
@@ -300,7 +297,8 @@ export default function EnhancedOrdersTable({
         </table>
       </div>
 
-      <div className="flex justify-end gap-4 items-center mt-4">
+      {/* Pagination */}
+      <div className="flex justify-end items-center gap-4 mt-4">
         <Button
           variant="outline"
           size="icon"
@@ -309,11 +307,9 @@ export default function EnhancedOrdersTable({
         >
           <SquareChevronLeft className="w-4 h-4" />
         </Button>
-
         <span className="text-sm">
           Page {currentPage} sur {totalPages}
         </span>
-
         <Button
           variant="outline"
           size="icon"
@@ -324,39 +320,44 @@ export default function EnhancedOrdersTable({
         </Button>
       </div>
 
+      {/* Dialog gestion commande */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Gérer la commande</DialogTitle>
           </DialogHeader>
-          <div className="w-full p-2 flex gap-2">
-            <div className="bg-regularBlue bg-opacity-20 p-2 h-fit rounded-lg">
-              <Truck className="w-6 h-6 text-regularBlue" />
-            </div>
-            <div>
-              <p className="text-[14px] font-medium">Addresse de livraison:</p>
-              <div className="text-[13px] font-medium text-gray-600">
-                {/* @ts-ignore */}
-                <p>
-                  {/* @ts-ignore */}
-                  {selectedOrder?.users_permissions_user?.firstName}{" "}
-                  {/* @ts-ignore */}
-                  {selectedOrder?.users_permissions_user?.lastName}
-                </p>
-                <p>{selectedOrder?.shipping_adress.adresse}</p>
-                <p className="uppercase">
-                  {selectedOrder?.shipping_adress.zip}{" "}
-                  {selectedOrder?.shipping_adress.city}
-                </p>
-                <p className="uppercase">
-                  {selectedOrder?.shipping_adress.country}
-                </p>
-              </div>
-            </div>
-          </div>
           {selectedOrder && (
             <form onSubmit={formik.handleSubmit}>
+              {/* hidden carrier pour Formik */}
+              <input
+                type="hidden"
+                name="carrier"
+                value={formik.values.carrier}
+              />
+              <div className="flex items-start gap-2 p-2">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <Truck className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Adresse de livraison :</p>
+                  <div className="text-gray-600 text-xs">
+                    <p>
+                      {selectedOrder.users_permissions_user.firstName}{" "}
+                      {selectedOrder.users_permissions_user.lastName}
+                    </p>
+                    <p>{selectedOrder.shipping_adress.adresse}</p>
+                    <p className="uppercase">
+                      {selectedOrder.shipping_adress.zip}{" "}
+                      {selectedOrder.shipping_adress.city}
+                    </p>
+                    <p className="uppercase">
+                      {selectedOrder.shipping_adress.country}
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 py-4">
+                {/* Tracking */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="tracking_number" className="text-right">
                     N° de suivi
@@ -365,34 +366,50 @@ export default function EnhancedOrdersTable({
                     id="tracking_number"
                     name="tracking_number"
                     value={formik.values.tracking_number}
-                    onChange={formik.handleChange}
+                    onChange={(e) => {
+                      formik.handleChange(e);
+                      const name = formik.values.transporter.name;
+                      if (name) {
+                        const sel = transporters.data.find(
+                          (t: any) => t.attributes.name === name
+                        );
+                        if (sel) {
+                          formik.setFieldValue("transporter", {
+                            name,
+                            tracking_link:
+                              sel.attributes.base_link + e.target.value,
+                          });
+                        }
+                      }
+                    }}
                     className="col-span-3"
                   />
-                  {formik.errors.tracking_number &&
-                  formik.touched.tracking_number ? (
-                    <div className="text-red-500 text-sm">
-                      {formik.errors.tracking_number}
-                    </div>
-                  ) : null}
+                  {formik.touched.tracking_number &&
+                    formik.errors.tracking_number && (
+                      <div className="text-red-500 text-sm">
+                        {formik.errors.tracking_number}
+                      </div>
+                    )}
                 </div>
+                {/* Transporteur */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="transporter" className="text-right">
-                    Transporteurs
+                    Transporteur
                   </Label>
                   <Select
-                    name="transporter"
                     value={formik.values.transporter.name}
                     onValueChange={(value: string) => {
-                      const selectedTransporter = transporters.data.find(
-                        (transporter: any) =>
-                          transporter.attributes.name === value
+                      const sel = transporters.data.find(
+                        (t: any) => t.attributes.name === value
                       );
-                      if (selectedTransporter) {
+                      if (sel) {
+                        const link =
+                          sel.attributes.base_link +
+                          formik.values.tracking_number;
+                        formik.setFieldValue("carrier", sel.attributes.name);
                         formik.setFieldValue("transporter", {
-                          name: selectedTransporter.attributes.name,
-                          tracking_link:
-                            selectedTransporter.attributes.base_link +
-                            formik.values.tracking_number,
+                          name: sel.attributes.name,
+                          tracking_link: link,
                         });
                       }
                     }}
@@ -400,19 +417,21 @@ export default function EnhancedOrdersTable({
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Sélectionner un transporteur" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {transporters.data.map((transporter: any) => (
-                        <SelectItem
-                          key={transporter.id}
-                          value={transporter.attributes.name}
-                        >
-                          {transporter.attributes.name}
+                    <SelectContent>
+                      {transporters.data.map((t: any) => (
+                        <SelectItem key={t.id} value={t.attributes.name}>
+                          {t.attributes.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {formik.touched.carrier && formik.errors.carrier && (
+                    <div className="text-red-500 text-sm">
+                      {formik.errors.carrier}
+                    </div>
+                  )}
                 </div>
-
+                {/* Statut */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="status" className="text-right">
                     Statut
@@ -420,14 +439,12 @@ export default function EnhancedOrdersTable({
                   <Select
                     name="status"
                     value={formik.values.status}
-                    onValueChange={(value) =>
-                      formik.setFieldValue("status", value)
-                    }
+                    onValueChange={(v) => formik.setFieldValue("status", v)}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Sélectionner un statut" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white">
+                    <SelectContent>
                       <SelectItem value="in progress">En cours</SelectItem>
                       <SelectItem value="on hold">En attente</SelectItem>
                       <SelectItem value="shipped">Expédiée</SelectItem>
@@ -437,13 +454,14 @@ export default function EnhancedOrdersTable({
                       <SelectItem value="refunded">Remboursée</SelectItem>
                     </SelectContent>
                   </Select>
-                  {formik.errors.status && formik.touched.status ? (
+                  {formik.touched.status && formik.errors.status && (
                     <div className="text-red-500 text-sm">
                       {formik.errors.status}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
+
               <DialogFooter>
                 <Button type="submit">Mettre à jour</Button>
               </DialogFooter>
@@ -454,6 +472,8 @@ export default function EnhancedOrdersTable({
     </div>
   );
 }
+
+// Helper pour les labels
 
 const getStatusLabel = (status: string) => {
   switch (status) {
