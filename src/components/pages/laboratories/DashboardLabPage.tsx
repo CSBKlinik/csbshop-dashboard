@@ -11,7 +11,6 @@ import {
   ShoppingBag,
   Trophy,
   Medal,
-  PackageIcon,
   ShoppingBasket,
   ChartLine,
 } from "lucide-react";
@@ -52,11 +51,11 @@ const filterOrdersByDateRange = (orders: any, dateRange: string) => {
   });
 };
 
+// ajoutez firstName et lastName dans Order
 type Order = {
   id: number;
   date: string;
   deliver_follow: string;
-  total_amount: string;
   order_summary: {
     purchase: Array<{
       quantity: number;
@@ -71,6 +70,8 @@ type Order = {
     id: number;
     username: string;
     email: string;
+    firstName: string; // <— ajouté
+    lastName: string; // <— ajouté
   };
 };
 
@@ -85,18 +86,21 @@ type SalesMetrics = {
   mostSoldProduct: { title: string; quantity: number };
   leastSoldProduct: { title: string; quantity: number };
   averagePurchasesPerCustomer: number;
-  bestCustomer: { username: string; totalPurchases: number };
+  bestCustomer: {
+    firstName: string; // <— exigé
+    lastName: string; // <— exigé
+    username: string;
+    totalPurchases: number;
+  };
 };
 
 export default function DashboardLabPage({ orders }: { orders: Order[] }) {
   const [dateRange, setDateRange] = useState("fromBeginning"); // Default to "From the Beginning"
-
   // Filter orders based on the selected date range
   const filteredOrders = useMemo(
     () => filterOrdersByDateRange(orders, dateRange),
     [orders, dateRange]
   );
-
   const salesMetrics: SalesMetrics = useMemo(() => {
     if (!filteredOrders || filteredOrders.length === 0) {
       return {
@@ -110,41 +114,33 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
         mostSoldProduct: { title: "N/A", quantity: 0 },
         leastSoldProduct: { title: "N/A", quantity: 0 },
         averagePurchasesPerCustomer: 0,
-        bestCustomer: { username: "N/A", totalPurchases: 0 },
+        bestCustomer: {
+          username: "N/A",
+          totalPurchases: 0,
+          firstName: "N/A",
+          lastName: "N/A",
+        },
       };
     }
 
-    const turnover =
-      filteredOrders.reduce(
-        (sum: any, order: any) => sum + parseFloat(order.total_amount),
-        0
-      ) / 100;
-    const numberOfSales = filteredOrders.length;
-    const averageBasket = turnover / numberOfSales;
-    const allClients = filteredOrders.map(
-      (order: any) => order.users_permissions_user
-    );
-    const uniqueClients = allClients.filter(
-      (client: any, index: any, self: any) =>
-        index === self.findIndex((c: any) => c.id === client.id)
-    );
-    const numberOfCustomers = uniqueClients.length;
-    const salesPerCustomer = numberOfSales / numberOfCustomers;
-
-    const productSales: {
-      [key: string]: {
-        quantity: number;
-        turnover: number;
-        price: number;
-        stock: string | null;
-      };
-    } = {};
+    // 1) On consolide d'abord les ventes par produit
+    type ProdData = {
+      quantity: number;
+      turnover: number;
+      price: number;
+      stock: string | null;
+    };
+    const productSales: Record<string, ProdData> = {};
     let packSales = 0;
-    let customerPurchases: { [key: string]: number } = {};
+    const customerPurchases: Record<string, number> = {};
 
     filteredOrders.forEach((order: any) => {
+      // achats de la commande
       order.order_summary.purchase.forEach((item: any) => {
         const { title, pricing, stock } = item.product;
+        const qty = item.quantity;
+
+        // initialisation si nouveau produit
         if (!productSales[title]) {
           productSales[title] = {
             quantity: 0,
@@ -153,53 +149,88 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             stock,
           };
         }
-        productSales[title].quantity += item.quantity;
-        productSales[title].turnover += item.quantity * pricing;
 
-        if (item.quantity > 1) packSales++;
+        // on ajoute quantité & CA
+        productSales[title].quantity += qty;
+        productSales[title].turnover += qty * pricing;
+
+        // packSale si plus d'une unité
+        if (qty > 1) {
+          packSales++;
+        }
       });
 
-      const customerId = order.users_permissions_user.id;
+      // on compte le nombre d'achats par client
+      const customerId = order.users_permissions_user.id.toString();
       customerPurchases[customerId] = (customerPurchases[customerId] || 0) + 1;
     });
 
-    const salesPerProduct = Object.entries(productSales).map(
-      ([title, data]) => ({
-        title,
-        ...data,
-      })
+    // 2) Turnover total = somme des turnover produits
+    const turnover = Object.values(productSales).reduce(
+      (sum, pd) => sum + pd.turnover,
+      0
     );
 
+    // 3) Autres métriques
+    const numberOfSales = filteredOrders.length;
+    const averageBasket = turnover / numberOfSales;
+
+    // clients uniques
+    const allClients = filteredOrders.map((o: any) => o.users_permissions_user);
+    const uniqueClients = allClients.filter(
+      (c: any, idx: any, arr: any) =>
+        idx === arr.findIndex((x: any) => x.id === c.id)
+    );
+    const numberOfCustomers = uniqueClients.length;
+    const salesPerCustomer = numberOfSales / numberOfCustomers;
+
+    // ventes par produit sous forme de tableau
+    const salesPerProduct = Object.entries(productSales).map(
+      ([title, data]) => ({ title, ...data })
+    );
+
+    // produit le plus / le moins vendu
     const mostSoldProduct = salesPerProduct.reduce(
-      (max, product) => (product.quantity > max.quantity ? product : max),
+      (best, p) => (p.quantity > best.quantity ? p : best),
       { title: "N/A", quantity: 0 }
     );
-
     const leastSoldProduct = salesPerProduct.reduce(
-      (min, product) => (product.quantity < min.quantity ? product : min),
+      (best, p) => (p.quantity < best.quantity ? p : best),
       { title: "N/A", quantity: Infinity }
     );
+    // si aucun produit, on remet quantity à 0
+    if (leastSoldProduct.quantity === Infinity) {
+      leastSoldProduct.quantity = 0;
+      leastSoldProduct.title = "N/A";
+    }
 
+    // moyennes et meilleur client
     const averagePurchasesPerCustomer =
-      Object.values(customerPurchases).reduce(
-        (sum, purchases) => sum + purchases,
-        0
-      ) / numberOfCustomers;
+      Object.values(customerPurchases).reduce((s, v) => s + v, 0) /
+      numberOfCustomers;
 
     const bestCustomer = Object.entries(customerPurchases).reduce(
-      (best, [customerId, purchases]) => {
+      (best, [custId, purchases]) => {
         if (purchases > best.totalPurchases) {
-          const customer = uniqueClients.find(
-            (c: any) => c.id.toString() === customerId
+          const client = uniqueClients.find(
+            (c: any) => c.id.toString() === custId
           );
           return {
-            username: customer ? customer.username : "N/A",
+            username: client?.username || "N/A",
             totalPurchases: purchases,
+            firstName: client?.firstName || "N/A",
+            lastName: client?.lastName || "N/A",
           };
         }
         return best;
       },
-      { username: "N/A", totalPurchases: 0 }
+      // **Valeur initiale complète**
+      {
+        username: "N/A",
+        totalPurchases: 0,
+        firstName: "N/A",
+        lastName: "N/A",
+      }
     );
 
     return {
@@ -313,7 +344,7 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-white">
+        {/* <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-start gap-4 space-y-0 pb-2 text-[#FFD700]">
             <div className="bg-[#FFD700] bg-opacity-20 p-2 rounded-lg">
               <PackageIcon className="h-4 w-4 text-muted-foreground" />
@@ -327,9 +358,9 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
           <CardContent>
             <div className="text-2xl font-bold">{salesMetrics.packSales}</div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-start gap-4 space-y-0 pb-2 text-[#FF4500]">
             <div className="bg-[#FF4500] bg-opacity-20 p-2 rounded-lg">
@@ -381,7 +412,7 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white">
+        {/* <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-start gap-4 space-y-0 pb-2 text-[#FFD700]">
             <div className="bg-[#FFD700] bg-opacity-20 p-2 rounded-lg">
               <Medal className="h-4 w-4 text-muted-foreground" />
@@ -391,12 +422,15 @@ export default function DashboardLabPage({ orders }: { orders: Order[] }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-bold">{salesMetrics.bestCustomer.username}</p>
+            <p className="font-bold">
+              {salesMetrics.bestCustomer.firstName}{" "}
+              {salesMetrics.bestCustomer?.lastName}
+            </p>
             <p className="text-[12px] text-gray-500 text-muted-foreground">
               Total achats: {salesMetrics.bestCustomer.totalPurchases}
             </p>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

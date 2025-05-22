@@ -30,6 +30,7 @@ import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import updateOrder from "@/app/(dashboard)/admin/laboratory/managing-orders/actions";
+import Image from "next/image";
 
 // Types
 
@@ -53,6 +54,7 @@ type Order = {
     firstName?: string;
     lastName?: string;
   };
+  order_summary: any;
   transporter?: { name: string; tracking_link: string };
 };
 
@@ -94,7 +96,7 @@ export default function EnhancedOrdersTable({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const ordersPerPage = 6;
-
+  console.log("orders:", orders);
   // Sorting & filtering
   const sortedOrders = orders
     .filter((order) =>
@@ -105,12 +107,22 @@ export default function EnhancedOrdersTable({
     .filter((order) =>
       statusFilter === "all" ? true : order.deliver_follow === statusFilter
     )
-    .sort((a, b) => {
+    .sort((a: any, b: any) => {
       if (sortBy === "total_amount") {
-        const aAmt = parseFloat(a.total_amount);
-        const bAmt = parseFloat(b.total_amount);
+        // Calculer le montant réel de la commande "a"
+        const aAmt = a.order_summary.purchase.reduce(
+          (sum: any, item: any) => sum + item.quantity * item.product.pricing,
+          0
+        );
+        // Calculer le montant réel de la commande "b"
+        const bAmt = b.order_summary.purchase.reduce(
+          (sum: any, item: any) => sum + item.quantity * item.product.pricing,
+          0
+        );
         return sortOrder === "asc" ? aAmt - bAmt : bAmt - aAmt;
       }
+
+      // Sinon on trie par date
       const aTime = new Date(a.date).getTime();
       const bTime = new Date(b.date).getTime();
       return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
@@ -120,6 +132,7 @@ export default function EnhancedOrdersTable({
     (currentPage - 1) * ordersPerPage,
     currentPage * ordersPerPage
   );
+
   const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
 
   // Handlers
@@ -196,6 +209,8 @@ export default function EnhancedOrdersTable({
     },
   });
 
+  console.log("selectedOrder:", selectedOrder);
+
   return (
     <div>
       {/* Recherche & filtre */}
@@ -254,38 +269,45 @@ export default function EnhancedOrdersTable({
           </thead>
           <tbody>
             {paginatedOrders.length > 0 ? (
-              paginatedOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-4 py-2 border-b">
-                    {order.users_permissions_user.firstName}{" "}
-                    {order.users_permissions_user.lastName}
-                  </td>
-                  <td className="px-4 py-2 border-b">
-                    <span
-                      className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                        getStatusLabel(order.deliver_follow).color
-                      }`}
-                    >
-                      {getStatusLabel(order.deliver_follow).label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 border-b font-semibold">
-                    €{(parseFloat(order.total_amount) / 100).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-2 border-b">
-                    {new Date(order.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-2 border-b">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleManageOrder(order)}
-                    >
-                      <Settings className="w-4 h-4 mr-2" /> Gérer
-                    </Button>
-                  </td>
-                </tr>
-              ))
+              paginatedOrders.map((order: any) => {
+                // Calcul inline du montant réel de la commande
+                const amount = order.order_summary.purchase.reduce(
+                  (sum: any, item: any) =>
+                    sum + item.quantity * item.product.pricing,
+                  0
+                );
+
+                const status = getStatusLabel(order.deliver_follow);
+                const name = `${order.users_permissions_user.firstName} ${order.users_permissions_user.lastName}`;
+
+                return (
+                  <tr key={order.id}>
+                    <td className="px-4 py-2 border-b">{name}</td>
+                    <td className="px-4 py-2 border-b">
+                      <span
+                        className={`px-2 py-1 rounded-lg text-xs font-medium ${status.color}`}
+                      >
+                        {status.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 border-b font-semibold">
+                      €{amount.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2 border-b">
+                      {new Date(order.date).toLocaleDateString("fr-FR")}
+                    </td>
+                    <td className="px-4 py-2 border-b">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleManageOrder(order)}
+                      >
+                        <Settings className="w-4 h-4 mr-2" /> Gérer
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={5} className="px-4 py-2 text-center">
@@ -356,6 +378,29 @@ export default function EnhancedOrdersTable({
                   </div>
                 </div>
               </div>
+              <div className="grid grid-cols-2 mt-4">
+                {selectedOrder?.order_summary?.purchase?.map(
+                  (el: any, index: number) => {
+                    return (
+                      <div className="w-1/2" key={index}>
+                        <div className="relative w-full h-[40px] rounded-full overflow-hidden">
+                          <Image
+                            src={el?.product?.image[0]?.url}
+                            alt="produit"
+                            fill
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <p className="text-xs">
+                          {el?.product?.title} <br />
+                          <strong>X</strong>
+                          {el?.quantity}
+                        </p>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
               <div className="grid gap-4 py-4">
                 {/* Tracking */}
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -392,7 +437,7 @@ export default function EnhancedOrdersTable({
                     )}
                 </div>
                 {/* Transporteur */}
-                <div className="grid grid-cols-4 items-center gap-4">
+                <div className="grid grid-cols-4 items-center gap-4 bg-white">
                   <Label htmlFor="transporter" className="text-right">
                     Transporteur
                   </Label>

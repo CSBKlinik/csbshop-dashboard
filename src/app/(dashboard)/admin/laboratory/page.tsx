@@ -20,6 +20,7 @@ async function DashboardLaboratory() {
     }
   );
   labOrdersApi = await labOrders.json();
+
   return <DashboardLabPage orders={labOrdersApi} />;
 }
 
