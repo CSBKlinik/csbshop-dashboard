@@ -1,32 +1,85 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ScanSearch,
   SquareChevronLeft,
   SquareChevronRight,
-} from "lucide-react"; // Icons
+} from "lucide-react";
+
+type PurchaseItem = {
+  quantity: number;
+  product: { pricing: number };
+};
 
 type Order = {
   id: number;
   date: string;
   deliver_follow: string;
-  total_amount: string;
+  order_summary: { purchase: PurchaseItem[] };
   users_permissions_user: {
     id: number;
-    username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
   };
 };
 
-export default function OrdersTable({ orders }: { orders: any }) {
-  const [sortBy, setSortBy] = useState<"total_amount">("total_amount"); // Default sort by total amount
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default sort order
-  const [searchQuery, setSearchQuery] = useState(""); // Search query for customer email
-  const [currentPage, setCurrentPage] = useState(1); // Pagination state
+type Props = {
+  orders: Order[];
+};
 
-  const ordersPerPage = 6; // Set the number of orders per page
+export default function OrdersTable({ orders }: Props) {
+  const [sortBy, setSortBy] = useState<"amount">("amount");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Status translation and colors
+  const ordersPerPage = 6;
+
+  // 1. Calculer pour chaque commande son montant réel
+  const ordersWithAmount = useMemo(() => {
+    return orders.map((order) => {
+      const amount = order.order_summary.purchase.reduce(
+        (sum, item) => sum + item.quantity * item.product.pricing,
+        0
+      );
+      return { ...order, amount };
+    });
+  }, [orders]);
+
+  // 2. Filtrer par recherche et trier
+  const sortedOrders = useMemo(() => {
+    return ordersWithAmount
+      .filter((order) =>
+        order.users_permissions_user.email
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortBy === "amount") {
+          return sortOrder === "asc"
+            ? a.amount - b.amount
+            : b.amount - a.amount;
+        }
+        return 0;
+      });
+  }, [ordersWithAmount, searchQuery, sortBy, sortOrder]);
+
+  const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
+
+  // 3. Paginer
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ordersPerPage;
+    return sortedOrders.slice(start, start + ordersPerPage);
+  }, [sortedOrders, currentPage]);
+
+  // 4. Helpers tri & pagination
+  const handleSort = () => {
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "in progress":
@@ -48,92 +101,54 @@ export default function OrdersTable({ orders }: { orders: any }) {
     }
   };
 
-  // Function to sort the orders by total amount
-  const sortedOrders = orders
-    .filter((order: Order) =>
-      order.users_permissions_user.email
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    )
-    .sort((a: any, b: any) => {
-      if (sortBy === "total_amount") {
-        const amountA = parseFloat(a.total_amount);
-        const amountB = parseFloat(b.total_amount);
-        return sortOrder === "asc" ? amountA - amountB : amountB - amountA;
-      }
-    });
-
-  // Get the orders for the current page
-  const paginatedOrders = sortedOrders.slice(
-    (currentPage - 1) * ordersPerPage,
-    currentPage * ordersPerPage
-  );
-
-  // Total pages for pagination
-  const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
-
-  // Function to toggle sorting
-  const handleSort = (criteria: "total_amount") => {
-    if (sortBy === criteria) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(criteria);
-      setSortOrder("desc");
-    }
-  };
-
-  // Function to handle pagination
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
   return (
     <div>
-      {/* Search Bar */}
+      {/* Barre de recherche */}
       <div className="relative mb-4">
         <input
           type="text"
           placeholder="Rechercher par email client"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
           className="p-2 pl-10 text-[14px] border border-gray-300 rounded-lg w-full"
         />
         <ScanSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
       </div>
 
-      {/* Orders Table */}
+      {/* Tableau des commandes */}
       <div className="overflow-hidden rounded-lg border border-gray-300">
-        <table className="min-w-full bg-white text-[14px] ">
+        <table className="min-w-full bg-white text-[14px]">
           <thead>
             <tr className="text-gray-500">
               <th className="px-4 py-2 border-b text-left">Client</th>
-
               <th className="px-4 py-2 border-b text-left">Status</th>
               <th
                 className="px-4 py-2 border-b cursor-pointer text-left"
-                onClick={() => handleSort("total_amount")}
+                onClick={handleSort}
               >
                 Montant
-                {sortBy === "total_amount" &&
-                  (sortOrder === "asc" ? " 🔼" : " 🔽")}
+                {sortBy === "amount" && (sortOrder === "asc" ? " 🔼" : " 🔽")}
               </th>
             </tr>
           </thead>
           <tbody className="text-[13px]">
             {paginatedOrders.length > 0 ? (
-              paginatedOrders.map((order: any) => {
+              paginatedOrders.map((order) => {
                 const { label, color } = getStatusLabel(order.deliver_follow);
+                const name = [
+                  order.users_permissions_user.firstName,
+                  order.users_permissions_user.lastName,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <tr key={order.id}>
                     <td className="px-4 py-2 border-b text-left">
-                      {/* @ts-ignore */}
-                      {order.users_permissions_user.firstName}{" "}
-                      {/* @ts-ignore */}
-                      {order.users_permissions_user.lastName}
+                      {name || order.users_permissions_user.email}
                     </td>
-
                     <td className="px-4 py-2 border-b text-left">
                       <span
                         className={`px-2 py-1 inline-block rounded-lg text-[12px] font-medium ${color}`}
@@ -142,14 +157,14 @@ export default function OrdersTable({ orders }: { orders: any }) {
                       </span>
                     </td>
                     <td className="px-4 py-2 border-b text-left font-semibold">
-                      €{(parseFloat(order.total_amount) / 100).toFixed(2)}
+                      €{order.amount.toFixed(2)}
                     </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={6} className="px-4 py-2 text-center">
+                <td colSpan={3} className="px-4 py-2 text-center">
                   Aucune commande disponible.
                 </td>
               </tr>
@@ -165,19 +180,17 @@ export default function OrdersTable({ orders }: { orders: any }) {
           disabled={currentPage === 1}
           className="px-2 py-2 bg-blue-600 rounded-lg disabled:bg-gray-400"
         >
-          <SquareChevronLeft className="w-4 h-4" />
+          <SquareChevronLeft className="w-4 h-4 text-white" />
         </button>
-
         <span className="text-[14px]">
           Page {currentPage} sur {totalPages}
         </span>
-
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           className="px-2 py-2 bg-blue-600 rounded-lg disabled:bg-gray-400"
         >
-          <SquareChevronRight className="w-4 h-4" />
+          <SquareChevronRight className="w-4 h-4 text-white" />
         </button>
       </div>
     </div>
