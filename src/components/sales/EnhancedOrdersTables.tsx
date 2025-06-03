@@ -48,6 +48,7 @@ type Order = {
     country: string;
   };
   users_permissions_user: {
+    tel: string;
     id: number;
     username: string;
     email: string;
@@ -209,8 +210,6 @@ export default function EnhancedOrdersTable({
     },
   });
 
-  console.log("selectedOrder:", selectedOrder);
-
   return (
     <div>
       {/* Recherche & filtre */}
@@ -367,7 +366,14 @@ export default function EnhancedOrdersTable({
                       {selectedOrder.users_permissions_user.firstName}{" "}
                       {selectedOrder.users_permissions_user.lastName}
                     </p>
+
                     <p>{selectedOrder.shipping_adress.adresse}</p>
+                    <p>
+                      Tel :{" "}
+                      {selectedOrder.users_permissions_user?.tel
+                        ? selectedOrder.users_permissions_user?.tel
+                        : "N/C"}
+                    </p>
                     <p className="uppercase">
                       {selectedOrder.shipping_adress.zip}{" "}
                       {selectedOrder.shipping_adress.city}
