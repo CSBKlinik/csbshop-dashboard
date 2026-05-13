@@ -103,22 +103,22 @@ export default function EnhancedOrdersTable({
     .filter((order) =>
       order.users_permissions_user.email
         .toLowerCase()
-        .includes(searchQuery.toLowerCase())
+        .includes(searchQuery.toLowerCase()),
     )
     .filter((order) =>
-      statusFilter === "all" ? true : order.deliver_follow === statusFilter
+      statusFilter === "all" ? true : order.deliver_follow === statusFilter,
     )
     .sort((a: any, b: any) => {
       if (sortBy === "total_amount") {
         // Calculer le montant réel de la commande "a"
         const aAmt = a.order_summary.purchase.reduce(
           (sum: any, item: any) => sum + item.quantity * item.product.pricing,
-          0
+          0,
         );
         // Calculer le montant réel de la commande "b"
         const bAmt = b.order_summary.purchase.reduce(
           (sum: any, item: any) => sum + item.quantity * item.product.pricing,
-          0
+          0,
         );
         return sortOrder === "asc" ? aAmt - bAmt : bAmt - aAmt;
       }
@@ -131,7 +131,7 @@ export default function EnhancedOrdersTable({
 
   const paginatedOrders = sortedOrders.slice(
     (currentPage - 1) * ordersPerPage,
-    currentPage * ordersPerPage
+    currentPage * ordersPerPage,
   );
 
   const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
@@ -192,7 +192,7 @@ export default function EnhancedOrdersTable({
             Authorization: `Bearer ${jwt}`,
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
       if (res.ok) {
         toast.success("Les informations ont été mises à jour !");
@@ -200,8 +200,8 @@ export default function EnhancedOrdersTable({
         setIsDialogOpen(false);
         setOrders((prev) =>
           prev.map((o) =>
-            o.id === selectedOrder.id ? { ...o, ...payload.data } : o
-          )
+            o.id === selectedOrder.id ? { ...o, ...payload.data } : o,
+          ),
         );
         updateOrder();
       } else {
@@ -273,7 +273,7 @@ export default function EnhancedOrdersTable({
                 const amount = order.order_summary.purchase.reduce(
                   (sum: any, item: any) =>
                     sum + item.quantity * item.product.pricing,
-                  0
+                  0,
                 );
 
                 const status = getStatusLabel(order.deliver_follow);
@@ -374,6 +374,7 @@ export default function EnhancedOrdersTable({
                         ? selectedOrder.users_permissions_user?.tel
                         : "N/C"}
                     </p>
+                    <p>Mail : {selectedOrder.users_permissions_user?.email}</p>
                     <p className="uppercase">
                       {selectedOrder.shipping_adress.zip}{" "}
                       {selectedOrder.shipping_adress.city}
@@ -404,7 +405,7 @@ export default function EnhancedOrdersTable({
                         </p>
                       </div>
                     );
-                  }
+                  },
                 )}
               </div>
               <div className="grid gap-4 py-4">
@@ -422,7 +423,7 @@ export default function EnhancedOrdersTable({
                       const name = formik.values.transporter.name;
                       if (name) {
                         const sel = transporters.data.find(
-                          (t: any) => t.attributes.name === name
+                          (t: any) => t.attributes.name === name,
                         );
                         if (sel) {
                           formik.setFieldValue("transporter", {
@@ -451,7 +452,7 @@ export default function EnhancedOrdersTable({
                     value={formik.values.transporter.name}
                     onValueChange={(value: string) => {
                       const sel = transporters.data.find(
-                        (t: any) => t.attributes.name === value
+                        (t: any) => t.attributes.name === value,
                       );
                       if (sel) {
                         const link =
