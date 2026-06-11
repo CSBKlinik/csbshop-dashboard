@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
       if (token?.role?.id === 3) {
         console.log("redirection labo");
         return NextResponse.redirect(
-          new URL("/admin/laboratory", request.nextUrl)
+          new URL("/admin/laboratory", request.nextUrl),
         );
       } else {
         return;

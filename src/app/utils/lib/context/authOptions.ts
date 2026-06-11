@@ -24,6 +24,7 @@ export const authOptions: AuthOptions = {
           console.log("Auth success !");
           const jwt = authentification.jwt;
           const user = authentification.user;
+          console.log("user:", user);
           return {
             id: user.id,
             jwt: jwt,

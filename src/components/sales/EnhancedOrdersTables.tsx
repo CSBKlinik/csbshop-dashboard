@@ -97,7 +97,6 @@ export default function EnhancedOrdersTable({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const ordersPerPage = 6;
-  console.log("orders:", orders);
   // Sorting & filtering
   const sortedOrders = orders
     .filter((order) =>
