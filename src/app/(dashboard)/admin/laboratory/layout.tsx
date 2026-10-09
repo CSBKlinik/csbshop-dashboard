@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "../../../globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/utils/lib/context/authOptions";
+import { redirect } from "next/navigation";
+import { isLaboratoryRole } from "@/app/utils/lib/context/laboratory-role";
 import AuthProvider from "@/app/utils/lib/context/AuthProvider";
 import { SidebarLayout } from "@/components/navigation/SibeBar";
 
@@ -19,6 +21,9 @@ export default async function RootLaboratoryLayout({
   children: React.ReactNode;
 }>) {
   const session = await getServerSession(authOptions);
+  if (!isLaboratoryRole((session?.user as { role?: unknown } | undefined)?.role)) {
+    redirect("/");
+  }
   return (
     <html lang="fr">
       <body className={inter.className}>
