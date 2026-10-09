@@ -1,6 +1,7 @@
 import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { loginLib } from "../api/users/api-requests";
+import { isLaboratoryRole } from "./laboratory-role";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -12,28 +13,23 @@ export const authOptions: AuthOptions = {
       },
       // @ts-ignore
       async authorize(credentials) {
-        const params = {
-          identifier: credentials?.email,
-          password: credentials?.password,
+        if (!credentials?.email?.trim() || !credentials?.password) return null;
+        const authentification = await loginLib({
+          identifier: credentials.email.trim(),
+          password: credentials.password,
+        });
+        if (!authentification) return null;
+        const { jwt, user } = authentification;
+        if (!isLaboratoryRole(user.role)) throw new Error("LaboratoryAccessDenied");
+        return {
+          id: String(user.id),
+          jwt,
+          email: user.email,
+          prenom: user.firstName,
+          nom: user.lastName,
+          role: user.role,
+          laboratory: user.laboratories,
         };
-        const authentification = await loginLib(params);
-        if (authentification.error) {
-          console.log("Auth error ...", authentification.error);
-          return null;
-        } else {
-          console.log("Auth success !");
-          const jwt = authentification.jwt;
-          const user = authentification.user;
-          return {
-            id: user.id,
-            jwt: jwt,
-            email: user.email,
-            prenom: user.firstname,
-            nom: user.lastname,
-            role: user.role,
-            laboratory: user.laboratories,
-          };
-        }
       },
     }),
   ],
