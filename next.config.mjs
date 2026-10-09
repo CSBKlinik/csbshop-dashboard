@@ -1,12 +1,18 @@
 /** @type {import('next').NextConfig} */
+const imageHostname = process.env.HOST_IMAGES;
+
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: process.env.HOST_IMAGES,
-      },
-    ],
+    ...(imageHostname
+      ? {
+          remotePatterns: [
+            {
+              protocol: "https",
+              hostname: imageHostname,
+            },
+          ],
+        }
+      : {}),
   },
 };
 

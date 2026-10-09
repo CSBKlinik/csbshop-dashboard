@@ -8,12 +8,16 @@ import DashboardLabPage from "@/components/pages/laboratories/DashboardLabPage";
 export default async function DashboardLaboratory() {
   const session = await getServerSession(authOptions);
   const jwt = (session?.user as { jwt?: string } | undefined)?.jwt;
+  let orders;
+  let errorMessage: string | undefined;
+  let errorStatus: number | undefined;
   try {
-    const orders = await fetchDashboardData("/api/orders/laboratory", jwt);
-    return <DashboardLabPage orders={orders} />;
+    orders = await fetchDashboardData("/api/orders/laboratory", jwt);
   } catch (error) {
-    const message = error instanceof DashboardDataError
+    errorMessage = error instanceof DashboardDataError
       ? error.message : "Impossible de charger les données. Réessayez dans un instant.";
-    return <DataError message={message} status={error instanceof DashboardDataError ? error.status : undefined} />;
+    errorStatus = error instanceof DashboardDataError ? error.status : undefined;
   }
+  if (errorMessage) return <DataError message={errorMessage} status={errorStatus} />;
+  return <DashboardLabPage orders={orders} />;
 }

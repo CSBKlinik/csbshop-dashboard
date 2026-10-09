@@ -8,12 +8,16 @@ import SettingsPage from "@/components/pages/laboratories/SettingsPage";
 export default async function Setting() {
   const session = await getServerSession(authOptions);
   const jwt = (session?.user as { jwt?: string } | undefined)?.jwt;
+  let user;
+  let errorMessage: string | undefined;
+  let errorStatus: number | undefined;
   try {
-    const user = await fetchDashboardData("/api/users/me?populate=*", jwt);
-    return <SettingsPage user={user} jwt={jwt || ""} session={session} />;
+    user = await fetchDashboardData("/api/users/me?populate=*", jwt);
   } catch (error) {
-    const message = error instanceof DashboardDataError
+    errorMessage = error instanceof DashboardDataError
       ? error.message : "Impossible de charger les données. Réessayez dans un instant.";
-    return <DataError message={message} status={error instanceof DashboardDataError ? error.status : undefined} />;
+    errorStatus = error instanceof DashboardDataError ? error.status : undefined;
   }
+  if (errorMessage) return <DataError message={errorMessage} status={errorStatus} />;
+  return <SettingsPage user={user} jwt={jwt || ""} session={session} />;
 }

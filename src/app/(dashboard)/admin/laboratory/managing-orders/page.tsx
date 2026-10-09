@@ -8,15 +8,20 @@ import ManagingOrdersPage from "@/components/pages/laboratories/ManagingOrdersPa
 export default async function ManagingOrders() {
   const session = await getServerSession(authOptions);
   const jwt = (session?.user as { jwt?: string } | undefined)?.jwt;
+  let orders;
+  let transporters;
+  let errorMessage: string | undefined;
+  let errorStatus: number | undefined;
   try {
-    const [orders, transporters] = await Promise.all([
+    [orders, transporters] = await Promise.all([
       fetchDashboardData("/api/orders/laboratory", jwt),
       fetchDashboardData("/api/transporters?populate=*", jwt),
     ]);
-    return <ManagingOrdersPage orders={orders} transporters={transporters} />;
   } catch (error) {
-    const message = error instanceof DashboardDataError
+    errorMessage = error instanceof DashboardDataError
       ? error.message : "Impossible de charger les données. Réessayez dans un instant.";
-    return <DataError message={message} status={error instanceof DashboardDataError ? error.status : undefined} />;
+    errorStatus = error instanceof DashboardDataError ? error.status : undefined;
   }
+  if (errorMessage) return <DataError message={errorMessage} status={errorStatus} />;
+  return <ManagingOrdersPage orders={orders} transporters={transporters} />;
 }

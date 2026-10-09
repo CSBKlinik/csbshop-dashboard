@@ -8,16 +8,22 @@ import ManagingProductsPage from "@/components/pages/laboratories/ManagingProduc
 export default async function ManageProducts() {
   const session = await getServerSession(authOptions);
   const jwt = (session?.user as { jwt?: string } | undefined)?.jwt;
+  let products;
+  let orders;
+  let promotions;
+  let errorMessage: string | undefined;
+  let errorStatus: number | undefined;
   try {
-    const [products, orders, promotions] = await Promise.all([
+    [products, orders, promotions] = await Promise.all([
       fetchDashboardData("/api/products/laboratory", jwt),
       fetchDashboardData("/api/orders/laboratory", jwt),
       fetchDashboardData("/api/promotions?populate=*", undefined, { anonymous: true }),
     ]);
-    return <ManagingProductsPage session={session} products={products} orders={orders} promotion={promotions?.data} />;
   } catch (error) {
-    const message = error instanceof DashboardDataError
+    errorMessage = error instanceof DashboardDataError
       ? error.message : "Impossible de charger les données. Réessayez dans un instant.";
-    return <DataError message={message} status={error instanceof DashboardDataError ? error.status : undefined} />;
+    errorStatus = error instanceof DashboardDataError ? error.status : undefined;
   }
+  if (errorMessage) return <DataError message={errorMessage} status={errorStatus} />;
+  return <ManagingProductsPage session={session} products={products} orders={orders} promotion={promotions?.data} />;
 }
