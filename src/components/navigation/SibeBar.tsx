@@ -68,6 +68,13 @@ export function SidebarLayout() {
             {isSidebarOpen && <span>Accueil</span>}
           </Link>
           <Link
+            href="/admin/laboratory/invoices"
+            className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
+          >
+            <ReceiptText />
+            {isSidebarOpen && <span>Factures</span>}
+          </Link>
+          <Link
             href="/admin/laboratory/managing-orders"
             className="flex items-center space-x-3 hover:bg-gray-700 p-2 rounded-lg"
           >
