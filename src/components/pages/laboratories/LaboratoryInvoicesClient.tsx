@@ -85,6 +85,8 @@ function getOrderSearchContent(order: any) {
 
   return [
     order?.order_id,
+    order?.laboratory?.name,
+    order?.laboratory?.legalName,
     order?.customer?.name,
     order?.customer?.email,
     order?.payment_status,
@@ -101,16 +103,46 @@ function getOrderSearchContent(order: any) {
 
 const LaboratoryInvoicesClient = ({ data }: Props) => {
   const [search, setSearch] = useState("");
+  const [filterLaboratory, setFilterLaboratory] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
-  const [openOrderId, setOpenOrderId] = useState<number | string | null>(null);
+  const [openOrderKey, setOpenOrderKey] = useState<string | null>(null);
 
   const orders = data?.orders || [];
-  const summary = data?.summary || {};
-  const laboratory = data?.laboratory || {};
+  const laboratories =
+    data?.laboratories || (data?.laboratory ? [data.laboratory] : []);
+
+  const laboratoryOrders = useMemo(() => {
+    if (!filterLaboratory) return orders;
+    return orders.filter(
+      (order: any) =>
+        String(order.laboratory?.id ?? data?.laboratory?.id) === filterLaboratory,
+    );
+  }, [orders, filterLaboratory, data?.laboratory?.id]);
+
+  const summary = filterLaboratory
+    ? laboratoryOrders.reduce(
+        (acc: any, order: any) => {
+          acc.gross_amount += Number(order.amounts?.gross_amount || 0);
+          acc.commission_amount += Number(order.amounts?.commission_amount || 0);
+          acc.net_transferred_amount += Number(
+            order.amounts?.net_transferred_amount || 0,
+          );
+          return acc;
+        },
+        {
+          orders_count: new Set(
+            laboratoryOrders.map((order: any) => order.order_id),
+          ).size,
+          gross_amount: 0,
+          commission_amount: 0,
+          net_transferred_amount: 0,
+        },
+      )
+    : data?.summary || {};
 
   const filteredOrders = useMemo(() => {
-    return [...orders]
+    return [...laboratoryOrders]
       .sort((a: any, b: any) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       })
@@ -128,7 +160,11 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
 
         return true;
       });
-  }, [orders, search, filterStartDate, filterEndDate]);
+  }, [laboratoryOrders, search, filterStartDate, filterEndDate]);
+  const filteredOrdersCount = new Set(
+    filteredOrders.map((order: any) => order.order_id),
+  ).size;
+
   const exportAccountingExcel = () => {
     const rows = filteredOrders.map((order: any) => {
       const vendorInvoice = order?.invoices?.vendor_to_customer;
@@ -250,9 +286,11 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
       alert("Une erreur est survenue pendant le téléchargement des factures.");
     }
   };
-  const hasActiveFilters = search || filterStartDate || filterEndDate;
+  const hasActiveFilters =
+    filterLaboratory || search || filterStartDate || filterEndDate;
 
   const resetFilters = () => {
+    setFilterLaboratory("");
     setSearch("");
     setFilterStartDate("");
     setFilterEndDate("");
@@ -276,10 +314,34 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
         <p className="text-sm text-gray-500 mt-1">
           Suivi comptable des commandes liées à{" "}
           <span className="font-semibold">
-            {laboratory.legalName || laboratory.name || "votre laboratoire"}
+            {laboratories
+              .map((laboratory: any) => laboratory.legalName || laboratory.name)
+              .join(", ") || "vos laboratoires"}
           </span>
           .
         </p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+        <label htmlFor="invoice-laboratory" className="text-sm font-medium">
+          Laboratoire
+        </label>
+        <select
+          id="invoice-laboratory"
+          value={filterLaboratory}
+          onChange={(e) => {
+            setFilterLaboratory(e.target.value);
+            setOpenOrderKey(null);
+          }}
+          className="block w-full md:max-w-sm p-2 mt-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Tous les laboratoires</option>
+          {laboratories.map((laboratory: any) => (
+            <option key={laboratory.id} value={String(laboratory.id)}>
+              {laboratory.name || laboratory.legalName}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -367,9 +429,9 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <p className="text-sm text-gray-500">
-          {filteredOrders.length} commande
-          {filteredOrders.length > 1 ? "s" : ""} affichée
-          {filteredOrders.length > 1 ? "s" : ""}.
+          {filteredOrdersCount} commande
+          {filteredOrdersCount > 1 ? "s" : ""} affichée
+          {filteredOrdersCount > 1 ? "s" : ""}.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-2">
@@ -398,11 +460,12 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
           {filteredOrders.map((order: any) => {
             const vendorInvoice = order?.invoices?.vendor_to_customer;
             const commissionInvoice = order?.invoices?.platform_commission;
-            const isOpen = openOrderId === order.order_id;
+            const orderKey = `${order.order_id}:${order.laboratory?.id || ""}`;
+            const isOpen = openOrderKey === orderKey;
 
             return (
               <div
-                key={order.order_id}
+                key={orderKey}
                 className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
               >
                 <div className="p-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
@@ -428,6 +491,12 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
                         {getStatusLabel(order.transfer_status)}
                       </span>
                     </div>
+
+                    {order.laboratory && (
+                      <p className="text-sm font-semibold text-gray-700">
+                        {order.laboratory.legalName || order.laboratory.name}
+                      </p>
+                    )}
 
                     <p className="text-sm text-gray-500">
                       Client :{" "}
@@ -497,7 +566,7 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
                     <button
                       type="button"
                       onClick={() =>
-                        setOpenOrderId(isOpen ? null : order.order_id)
+                        setOpenOrderKey(isOpen ? null : orderKey)
                       }
                       className="text-xs text-blue-600 font-semibold hover:underline"
                     >
@@ -658,7 +727,7 @@ const LaboratoryInvoicesClient = ({ data }: Props) => {
             Aucune facture trouvée
           </p>
           <p className="text-sm text-gray-500">
-            Les commandes et factures de votre laboratoire apparaîtront ici.
+            Les commandes et factures de vos laboratoires apparaîtront ici.
           </p>
 
           {hasActiveFilters && (
